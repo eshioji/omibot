@@ -1,11 +1,8 @@
 import time
+
 from slackclient import SlackClient
 
 import config
-
-
-def is_bot_mentioned(msg):
-    return config.botname in msg['text']
 
 
 class SlackConn:
@@ -13,10 +10,10 @@ class SlackConn:
         self.slack_token = slack_token
         self.sc = SlackClient(slack_token)
 
-    def post_msg(self, msg):
+    def post_msg(self, msg, channel=config.general_channel):
         ret = self.sc.api_call(
             "chat.postMessage",
-            channel="#allgemein",
+            channel=channel,
             text=msg,
             as_user=True
         )
