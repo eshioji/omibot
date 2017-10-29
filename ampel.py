@@ -36,6 +36,14 @@ class Ampel:
         flash_thread = threading.Thread(target=do_flash)
         flash_thread.start()
 
+    def check_status(self):
+        try:
+            out = subprocess.check_output(self.base_command + ['-l'], stderr=subprocess.STDOUT)
+            return 0, out
+        except subprocess.CalledProcessError as e:
+            return e.returncode, e.output
+
+
 
 if __name__ == '__main__':
     ampel = Ampel(config.cleware_exec)

@@ -39,10 +39,3 @@ class SlackConn:
 if __name__ == '__main__':
     conn = SlackConn(config.slack_token)
 
-
-    def on_message(msg):
-        if is_bot_mentioned(msg):
-            conn.post_msg(msg)
-
-
-    conn.listen(on_message=on_message)

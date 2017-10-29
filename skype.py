@@ -10,12 +10,22 @@ class Skype:
     def __init__(self, skype_contacts):
         self.skype_contacts = skype_contacts
 
+    def lookup(self, name):
+        return config.skype_contacts[name.lower()]
+
     def start_call(self, name):
         skypeId = config.skype_contacts[name.lower()]
-        with open(os.path.join(base_dir, 'scripts', 'start_skype.scpt')) as f:
+        with open(os.path.join(base_dir, 'scripts', 'start_skype_call.scpt')) as f:
             template = f.read()
             replaced = template % skypeId
-            subprocess.check_call(['osascript', '-e', replaced])
+            return subprocess.check_call(['osascript', '-e', replaced])
+
+    def reset(self):
+        with open(os.path.join(base_dir, 'scripts', 'reset_skype.scpt')) as f:
+            script = f.read()
+            return subprocess.check_call(['osascript', '-e', script])
+
+
 
 
 def main():

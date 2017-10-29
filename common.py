@@ -1,5 +1,7 @@
 import logging
+import os
 from logging import handlers
+import subprocess
 
 import config
 from slack_conn import SlackConn
@@ -30,3 +32,12 @@ def info(msg):
     slack_conn = SlackConn(config.slack_token)
     slack_conn.post_msg('[INFO] %s' % msg, channel=config.log_channel)
     logger.info(msg)
+
+
+base_dir = os.path.dirname(os.path.realpath(__file__))
+
+
+def run_apple_script(script_name):
+    with open(os.path.join(base_dir, 'scripts', script_name)) as f:
+        content = f.read()
+        return subprocess.check_call(['osascript', '-e', content])
