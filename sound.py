@@ -17,8 +17,9 @@ def ring(duration):
             else:
                 subprocess.check_call(['afplay', config.ring_tone])
 
-    flash_thread = threading.Thread(target=do_beep)
-    flash_thread.start()
+    ring_thread = threading.Thread(target=do_beep)
+    ring_thread.start()
+    return ring_thread
 
 
 def say(text):

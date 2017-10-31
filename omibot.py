@@ -1,3 +1,4 @@
+import threading
 import time
 import traceback
 import re
@@ -12,6 +13,7 @@ import health
 import restorer
 import sound
 from ampel import Ampel
+from sentry import Sentry
 from skype import Skype
 from slack_conn import SlackConn
 
@@ -27,14 +29,16 @@ class Omibot:
         self.ampel = ampel
         self.command_dict = [
             ('ring', self.ring, 'Set off sound and flashing light at Omi'),
-            ('call', self.call, "Call someone from Omi's Skype"),
-            ('shutdownr', self.shutdownr, "Reboot Omibot's machine"),
-            ('restart skype', self.restart_skype, "Restart Omi's skype"),
+            ('call', self.call, "Call someone from Omi's Skype (e.g. '@omibot call enno')"),
             ('help', self.help, "Display help"),
-            ('killbot', self.kill, "Kill Omibot"),
-            ('health', self.health_check, "Perform health check")
+            ('system restart skype', self.restart_skype, "Restart Omi's skype"),
+            ('system recover', self.health_check, "Perform health check and try to recover functions"),
+            ('system shutdownr', self.shutdownr, "Reboot Omibot's machine"),
+            ('system killbot', self.kill, "Kill Omibot"),
         ]
         self.skype = skype
+        self.monitoring = False
+        self.monitoring_thread = None
 
     def is_bot_mentioned(self, msg):
         return self.bot_name in msg['text'] and msg['channel'] == self.channel_name
@@ -46,27 +50,47 @@ class Omibot:
                     common.info('Omibot executing:%s on %s' % (key, msg))
                     return command(msg)
             self.slack_conn.post_msg("Sorry I don't understand your command.")
+            common.error(msg)
             self.help(msg)
 
     def start(self):
         startmsg = 'Omibot starting:pid=%s' % os.getpid()
         common.info(startmsg)
         self.slack_conn.post_msg(startmsg)
-        while True:
-            try:
-                self.slack_conn.listen(self.on_message)
-            except StopIteration as e:
-                common.info('Exiting because shutdown requested')
-                return
-            except:
-                tb = traceback.format_exc()
-                common.error('Omibot unable to listen to commands. Error Info: %s Retrying...' % tb)
-                time.sleep(10)
+
+        self.monitoring = True
+        def monitor_msgs(context):
+            while context.monitoring:
+                try:
+                    context.slack_conn.listen(context.on_message)
+                except StopIteration as e:
+                    common.info('Exiting because shutdown requested')
+                    context.monitoring = False
+                    return
+                except:
+                    tb = traceback.format_exc()
+                    common.error('Omibot unable to listen to commands. Error Info: %s Retrying...' % tb)
+                    time.sleep(10)
+
+        def meh():
+            monitor_msgs(self)
+        monitoring_thread = threading.Thread(target=meh)
+        monitoring_thread.start()
+        self.monitoring_thread = monitoring_thread
+
+    def stop(self):
+        self.slack_conn.post_msg('Omibot stop requested')
+        self.monitoring = False
+        self.monitoring_thread.join(10)
+
 
     def ring(self, msg):
         self.slack_conn.post_msg('Ringing Omi for 30 seconds')
-        sound.ring(30)
-        self.ampel.flash(30)
+        ring = sound.ring(30)
+        flash = self.ampel.flash(30)
+        ring.join(40)
+        flash.join(40)
+        self.slack_conn.post_msg('Ringed Omi for 30 seconds')
 
     def call(self, msg):
         try:
@@ -79,9 +103,9 @@ class Omibot:
                 " Known contacts:%s" % self.skype.skype_contacts
             )
             return
-        self.ring(msg)
-        self.slack_conn.post_msg('Calling %s from Omi in 15sec' % name)
+        self.slack_conn.post_msg('Calling %s from Omi' % name)
         self.skype.start_call(name)
+        self.ring(msg)
 
     def shutdownr(self, msg):
         self.slack_conn.post_msg('Restarting Omibot Machine')
@@ -101,6 +125,9 @@ class Omibot:
     def kill(self, msg):
         self.slack_conn.post_msg("Exiting because shutdown requested")
         raise StopIteration('EXITING')
+
+    def is_alive(self):
+        return self.monitoring_thread.is_alive()
 
     def health_check(self, msg):
         def batt():
@@ -146,6 +173,16 @@ def main():
                     Skype(config.skype_contacts))
     common.info('Omibot starts listening...')
     omibot.start()
+
+    sentry = Sentry(config.sentry_upload_dir, config.sentry_channel_id, config.slack_token)
+    common.info('Sentry starts listening...')
+    sentry.start()
+
+    while True:
+        time.sleep(10)
+        if not omibot.is_alive():
+            common.error('Omibot is dead')
+            return
 
 
 if __name__ == '__main__':

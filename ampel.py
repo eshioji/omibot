@@ -35,6 +35,7 @@ class Ampel:
 
         flash_thread = threading.Thread(target=do_flash)
         flash_thread.start()
+        return flash_thread
 
     def check_status(self):
         try:
