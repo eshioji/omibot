@@ -1,5 +1,5 @@
 tell application "Skype"
-    quit
+  quit
 end tell
 
 delay 5

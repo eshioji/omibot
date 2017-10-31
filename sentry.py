@@ -3,9 +3,9 @@ import glob
 import os
 import shutil
 import threading
+import time
 import traceback
 from pathlib import Path
-import time
 
 import common
 import config
@@ -16,13 +16,15 @@ class Sentry:
     def __init__(self,
                  upload_dir,
                  channel_id,
-                 slack_token
+                 slack_token,
+                 everym
                  ):
         self.slack = SlackConn(slack_token)
         self.channel_id = channel_id
         self.upload_dir = upload_dir
         self.monitoring = False
         self.monitoring_thread = None
+        self.everym = everym
 
     def list_uploaded(self):
         to_abs_path = lambda s: os.path.join(self.upload_dir, s)
@@ -39,6 +41,10 @@ class Sentry:
             if t < (now - datetime.timedelta(days=days)):
                 shutil.rmtree(d)
 
+    def delete_all(self):
+        for d, _t in self.list_uploaded():
+            shutil.rmtree(d)
+
     def find_unreported(self):
         donefile = lambda s: os.path.join(s, 'done')
         for d, t in self.list_uploaded():
@@ -53,25 +59,31 @@ class Sentry:
         common.info('Sentry starting')
         self.slack.post_msg('Sentry starting')
         self.monitoring = True
+
         def monitor_uploads(context):
             while context.monitoring:
                 time.sleep(10)
+                last_reported = datetime.datetime.now() - datetime.timedelta(days=99)
                 try:
                     unreported = context.find_unreported()
-                    last_img, last_time = max(unreported, key=lambda s: s[1])
-                    msg = 'Somebody is in the room at %s' % last_time
-                    context.slack.post_msg(msg, self.channel_id)
-                    context.slack.upload_img(last_img, self.channel_id)
-                except StopIteration as e:
-                    common.info('Exiting because shutdown requested')
-                    context.monitoring = False
-                    return
+                    if unreported and datetime.datetime.now() > (
+                                last_reported + datetime.timedelta(minutes=context.everym)):
+                        last_img, last_time = max(unreported, key=lambda s: s[1])
+                        msg = 'Somebody is in the room at %s' % last_time
+                        context.slack.post_msg(msg, self.channel_id)
+                        context.slack.upload_img(last_img, self.channel_id)
+                        last_reported = datetime.datetime.now()
+                    elif context.list_uploaded():
+                        context.delete_all(0)
                 except:
                     tb = traceback.format_exc()
-                    common.error('Omibot unable to listen to commands. Error Info: %s Retrying...' % tb)
+                    common.error('Sentry unable to post omi log. Error Info: %s Retrying...' % tb)
                     time.sleep(10)
 
-        monitoring_thread = threading.Thread(target=monitor_uploads(self))
+        def meh():
+            monitor_uploads(self)
+
+        monitoring_thread = threading.Thread(target=meh)
         monitoring_thread.start()
         self.monitoring_thread = monitoring_thread
 

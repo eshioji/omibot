@@ -26,8 +26,6 @@ class Skype:
             return subprocess.check_call(['osascript', '-e', script])
 
 
-
-
 def main():
     skype = Skype(config.skype_contacts)
     skype.start_call('enno')

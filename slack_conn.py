@@ -48,4 +48,3 @@ class SlackConn:
 if __name__ == '__main__':
     conn = SlackConn(config.slack_token)
     conn.upload_img('/Users/omibot/data/omibot/sentry/Dienstag, 31. Oktober 2017 um 14:15:51/Image2.jpeg', '#allgemein')
-

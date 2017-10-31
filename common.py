@@ -1,7 +1,7 @@
 import logging
 import os
-from logging import handlers
 import subprocess
+from logging import handlers
 
 import config
 from slack_conn import SlackConn

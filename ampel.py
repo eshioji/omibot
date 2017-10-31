@@ -45,7 +45,6 @@ class Ampel:
             return e.returncode, e.output
 
 
-
 if __name__ == '__main__':
     ampel = Ampel(config.cleware_exec)
     ret, out = ampel.signal(0, 1)

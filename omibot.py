@@ -1,11 +1,8 @@
+import os
+import re
 import threading
 import time
 import traceback
-import re
-
-import sys
-
-import os
 
 import common
 import config
@@ -16,6 +13,7 @@ from ampel import Ampel
 from sentry import Sentry
 from skype import Skype
 from slack_conn import SlackConn
+
 
 def extract_destination(msg):
     return re.match(r'.+ call ([A-z]+)$', msg['text']).group(1)
@@ -59,6 +57,7 @@ class Omibot:
         self.slack_conn.post_msg(startmsg)
 
         self.monitoring = True
+
         def monitor_msgs(context):
             while context.monitoring:
                 try:
@@ -74,6 +73,7 @@ class Omibot:
 
         def meh():
             monitor_msgs(self)
+
         monitoring_thread = threading.Thread(target=meh)
         monitoring_thread.start()
         self.monitoring_thread = monitoring_thread
@@ -82,7 +82,6 @@ class Omibot:
         self.slack_conn.post_msg('Omibot stop requested')
         self.monitoring = False
         self.monitoring_thread.join(10)
-
 
     def ring(self, msg):
         self.slack_conn.post_msg('Ringing Omi for 30 seconds')
@@ -159,12 +158,6 @@ class Omibot:
         self.restart_skype(msg)
 
 
-
-
-
-
-
-
 def main():
     omibot = Omibot(config.general_channel_id,
                     config.botname,
@@ -174,7 +167,8 @@ def main():
     common.info('Omibot starts listening...')
     omibot.start()
 
-    sentry = Sentry(config.sentry_upload_dir, config.sentry_channel_id, config.slack_token)
+    sentry = Sentry(config.sentry_upload_dir, config.sentry_channel_id, config.slack_token,
+                    config.report_omi_log_every_n_minute)
     common.info('Sentry starts listening...')
     sentry.start()
 

@@ -1,5 +1,5 @@
 tell application "iSentry"
-    quit
+  quit
 end tell
 
 delay 5

@@ -1,3 +1,3 @@
 tell application "Finder"
-    restart
+  restart
 end tell
