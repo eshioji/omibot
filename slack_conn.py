@@ -2,6 +2,7 @@ import time
 
 from slackclient import SlackClient
 
+import common
 import config
 
 
@@ -9,6 +10,7 @@ class SlackConn:
     def __init__(self, slack_token):
         self.slack_token = slack_token
         self.sc = SlackClient(slack_token)
+        self.listening = True
 
     def post_msg(self, msg, channel=config.general_channel):
         ret = self.sc.api_call(
@@ -23,8 +25,9 @@ class SlackConn:
             return ret
 
     def listen(self, on_message):
+        common.info("Listening")
         if self.sc.rtm_connect():
-            while True:
+            while self.listening:
                 time.sleep(1)
                 msgs = self.sc.rtm_read()
                 for msg in msgs:

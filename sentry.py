@@ -35,15 +35,11 @@ class Sentry:
                 if '.DS_Store' not in x
                 ]
 
-    def delete_older_than(self, days):
+    def delete_older_than(self, minutes):
         now = datetime.datetime.now()
         for d, t in self.list_uploaded():
-            if t < (now - datetime.timedelta(days=days)):
+            if t < (now - datetime.timedelta(minutes=minutes)):
                 shutil.rmtree(d)
-
-    def delete_all(self):
-        for d, _t in self.list_uploaded():
-            shutil.rmtree(d)
 
     def find_unreported(self):
         donefile = lambda s: os.path.join(s, 'done')
@@ -61,20 +57,20 @@ class Sentry:
         self.monitoring = True
 
         def monitor_uploads(context):
+            last_reported = datetime.datetime.now() - datetime.timedelta(days=99)
             while context.monitoring:
                 time.sleep(10)
-                last_reported = datetime.datetime.now() - datetime.timedelta(days=99)
                 try:
-                    unreported = context.find_unreported()
-                    if unreported and datetime.datetime.now() > (
+                    unreported = list(context.find_unreported())
+                    if len(unreported) > 0 and datetime.datetime.now() > (
                                 last_reported + datetime.timedelta(minutes=context.everym)):
                         last_img, last_time = max(unreported, key=lambda s: s[1])
                         msg = 'Somebody is in the room at %s' % last_time
                         context.slack.post_msg(msg, self.channel_id)
                         context.slack.upload_img(last_img, self.channel_id)
                         last_reported = datetime.datetime.now()
-                    elif context.list_uploaded():
-                        context.delete_all(0)
+                    else:
+                        context.delete_older_than(context.everym * 3)
                 except:
                     tb = traceback.format_exc()
                     common.error('Sentry unable to post omi log. Error Info: %s Retrying...' % tb)
@@ -97,7 +93,7 @@ def find_newest_img(path):
 
 
 def main():
-    sentry = Sentry(config.sentry_upload_dir, config.sentry_channel_id, config.slack_token)
+    sentry = Sentry(config.sentry_upload_dir, config.sentry_channel_id, config.slack_token, config.report_omi_log_every_n_minute)
     sentry.start()
     time.sleep(30)
     sentry.stop()

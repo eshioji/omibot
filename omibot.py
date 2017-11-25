@@ -44,7 +44,7 @@ class Omibot:
     def on_message(self, msg):
         if self.is_bot_mentioned(msg):
             for key, command, _desc in self.command_dict:
-                if key in msg['text']:
+                if key in msg['text'].lower():
                     common.info('Omibot executing:%s on %s' % (key, msg))
                     return command(msg)
             self.slack_conn.post_msg("Sorry I don't understand your command.")
@@ -70,6 +70,7 @@ class Omibot:
                     tb = traceback.format_exc()
                     common.error('Omibot unable to listen to commands. Error Info: %s Retrying...' % tb)
                     time.sleep(10)
+            context.slack_conn.listening = False
 
         def meh():
             monitor_msgs(self)
@@ -159,6 +160,11 @@ class Omibot:
 
 
 def main():
+    return start_listening(12)
+
+
+def start_listening(run_hours):
+    now = time.time()
     omibot = Omibot(config.general_channel_id,
                     config.botname,
                     SlackConn(config.slack_token),
@@ -166,17 +172,18 @@ def main():
                     Skype(config.skype_contacts))
     common.info('Omibot starts listening...')
     omibot.start()
-
-    sentry = Sentry(config.sentry_upload_dir, config.sentry_channel_id, config.slack_token,
-                    config.report_omi_log_every_n_minute)
-    common.info('Sentry starts listening...')
-    sentry.start()
-
-    while True:
+    # sentry = Sentry(config.sentry_upload_dir, config.sentry_channel_id, config.slack_token,
+    #                 config.report_omi_log_every_n_minute)
+    # common.info('Sentry starts listening...')
+    # sentry.start()
+    while ((now - time.time()) / 3600) < run_hours:
         time.sleep(10)
         if not omibot.is_alive():
             common.error('Omibot is dead')
+            # sentry.stop()
             return
+    # omibot.stop()
+    # common.info('Existing due to run_hours exceeded')
 
 
 if __name__ == '__main__':
